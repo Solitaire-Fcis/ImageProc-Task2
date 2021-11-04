@@ -20,19 +20,74 @@ function Task2IP()
         mask = Gauss2(sig);
         res = LinearFilter(I, mask, 'none');
     end
+    if choice == 4
+        mask = LaplacianSharp();
+        res = LinearFilter(I, mask, 'cutoff');
+    end
+    if choice == 5
+        fprintf('Enter Which Direction [1.Horizontal,2.Vertical]\n');
+        choice = input('Enter Number>>>');
+        if choice == 1
+            choice = 'H';
+        end
+        if choice == 2
+            choice = 'V';
+        end
+        [Sob1,Sob2] = Sobel(choice);
+        res1 = LinearFilter(I, Sob1, 'absolute');
+        res2 = LinearFilter(I, Sob2, 'absolute');
+        res = res1+res2;
+    end
+    if choice == 6
+        res = EdgeMagnit(I);
+    end
     imshow(res)
 end
 
 % ---------- Main Linear Filteration Function ----------
 function res = LinearFilter(I, Filter, Postproc)
-    if Postproc == 'none'
-        res = imfilter(I, Filter, 'conv');
+    [rows, columns] = size(I);
+    I = padarray(I,[1 1], 0);
+    classOfImage = class(I);
+    if isa(I,'uint8') || isa(I,'uint16') || isa(I,'int8') || isa(I,'int16') || isa(I,'logical')
+        I = cast(I,'single');
+        Filter = cast(Filter,'single');
     end
-    %if Postproc == 'cutoff'
-    %end
-    %if Postproc == 'absolute'
-    %end
-    
+    res = convn(I,Filter,'same');
+    if(~isa(res,classOfImage))
+        res = cast(res, classOfImage);
+    end
+    if strcmpi(Postproc, 'cutoff')
+        for i = 1:rows
+            for j = 1:columns
+                if res(i,j) > 255
+                    res(i,j) = 255;
+                end
+                if res(i,j) < 0
+                    res(i,j) = 0;
+                end
+            end
+        end
+    end
+    if strcmpi(Postproc, 'absolute')
+        for i = 1:rows
+            for j = 1:columns
+                if res(i,j) < 0
+                    res(i,j) = abs(res(i,j));
+                end
+            end
+        end
+        for i = 1:rows
+            for j = 1:columns
+                if res(i,j) > 255
+                    res(i,j) = 255;
+                end
+                if res(i,j) < 0
+                    res(i,j) = 0;
+                end
+            end
+        end
+    end
 end
 % ----------   MEAN FILTER -----------
 function mask = MeanMask(W,H)
@@ -88,15 +143,39 @@ function mask = Gauss2(sig)
 end
 % ---------- Laplacian Sharpnes -------
 function mask = LaplacianSharp()
-
+    lap1 = [ 0,-1,0; -1,5,-1; 0,-1,0 ];
+    lap2 = [ -1,-1,-1; -1,9,-1; -1,-1,-1 ];
+    fprintf('Enter Which Filter To Use [1.(5)Centered,2.(9)Centered]\n');
+    choice = input('Enter Number>>>');
+    if choice == 1
+        mask = lap1;
+    end
+    if choice == 2
+        mask = lap2;
+    end
 end
 
 % ---------- SOBEL ----------
-function masks = Sobel(mask)
-
+function [Sob1, Sob2] = Sobel(maskType)
+    if strcmpi(maskType, 'H')
+        Sob1 = [ -1,-2,-1; 0,0,0; 1,2,1 ];
+        Sob2 = [ 1,2,1; 0,0,0; -1,-2,-1 ];
+    end
+    if strcmpi(maskType, 'V')
+        Sob1 = [ -1,0,1; -2,0,2; -1,0,1 ];
+        Sob2 = [ 1,0,-1; 2,0,-2; 1,0,-1 ];
+    end
 end
 
 % ---------- EDGE MAGNIT -----------
 function goal = EdgeMagnit(I)
-
+    [SobH1, SobH2] = Sobel('H');
+    [SobV1, SobV2] = Sobel('V');
+    resH1 = LinearFilter(I, SobH1, 'absolute');
+    resH2 = LinearFilter(I, SobH2, 'absolute');
+    resH = resH1+resH2;
+    resV1 = LinearFilter(I, SobV1, 'absolute');
+    resV2 = LinearFilter(I, SobV2, 'absolute');
+    resV = resV1+resV2;
+    goal = resH+resV;
 end
